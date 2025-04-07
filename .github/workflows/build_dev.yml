@@ -24,4 +24,4 @@ jobs:
       vds-host: ${{ 10.0.2.15 }}
       vds-username: ${{ orest }}
       vds-private-key: ${{ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJTVzUKmNhP/Fo4kgBbmcnyajRBaKzg9B95hpEcafojx orest@archlinux }}
-      discord-webhook-url: ${{ https://discordapp.com/api/webhooks/1358726892756406414/WQmmGEVABACU6OE9bn7OFMpruWGifSafWttUDe2JpPPtW3LalitJ93W0m1KCYyTww-Y0 }}
+      discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
