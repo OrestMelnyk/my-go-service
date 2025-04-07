@@ -1,0 +1,27 @@
+name: Сборка под Dev
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: x3a-tech/auto-shell/.github/workflows/dev_go_service_discord.yml@main
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-base-name: ${{ github.repository }}
+      deploy-target-name: 'News Out Service'
+      compose-service-name: ${{ vars.COMPOSE_SERVICE_NAME }}
+      dockerfile-path: './Dockerfile'
+      docker-context: '.'
+      notify: true
+      vds-compose-path: ${{ vars.DEV_VDS_COMPOSE_PATH }}
+    secrets:
+      ghcr-token: ${{ secrets.REPO_PACKAGE_TOKEN }}
+      vds-host: ${{ secrets.DEV_VDS_HOST }}
+      vds-username: ${{ secrets.DEV_VDS_USERNAME }}
+      vds-private-key: ${{ secrets.DEV_VDS_PRIVATE_KEY }}
+      discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}

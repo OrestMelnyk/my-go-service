@@ -1,0 +1,192 @@
+name: Reusable - Docker Build, Publish & Deploy Dev Go Service
+
+on:
+  workflow_call:
+    inputs:
+      image-base-name:
+        description: 'Базовое имя Docker-образа (например, owner/repo)'
+        required: true
+        type: string
+      dockerfile-path:
+        description: 'Путь к Dockerfile относительно корня репозитория'
+        required: false
+        type: string
+        default: './Dockerfile'
+      docker-context:
+        description: 'Контекст сборки Docker'
+        required: false
+        type: string
+        default: '.'
+      deploy-target-name:
+         description: 'Название окружения/сервера для деплоя (для логов/уведомлений)'
+         required: true
+         type: string
+      vds-compose-path:
+        description: 'Полный путь к файлу docker-compose.yml на целевом VDS'
+        required: true
+        type: string
+      compose-service-name:
+        description: 'Имя сервиса в docker-compose.yml для обновления и перезапуска'
+        required: true
+        type: string
+      notify:
+         description: 'Отправлять ли уведомления в Discord (true/false)'
+         required: false
+         type: boolean
+         default: true
+
+    secrets:
+      ghcr-token:
+        description: 'Токен для аутентификации в GHCR (например, secrets.GITHUB_TOKEN или PAT)'
+        required: true
+      vds-host:
+        description: 'Хост VDS для SSH-подключения'
+        required: true
+      vds-username:
+        description: 'Имя пользователя VDS для SSH'
+        required: true
+      vds-private-key:
+        description: 'Приватный SSH-ключ для подключения к VDS'
+        required: true
+      discord-webhook-url:
+        description: 'URL вебхука Discord для уведомлений'
+        required: false
+
+    outputs:
+      image-tags:
+        description: "Сгенерированные теги для Docker-образа"
+        value: ${{ jobs.build-and-deploy.outputs.image-tags }}
+      image-labels:
+        description: "Сгенерированные метки для Docker-образа"
+        value: ${{ jobs.build-and-deploy.outputs.image-labels }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ inputs.image-base-name }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tags: ${{ steps.meta.outputs.tags }}
+      image-labels: ${{ steps.meta.outputs.labels }}
+
+    steps:
+      - name: Проверка репозитория (Checkout calling repository code)
+        uses: actions/checkout@v4
+
+      - name: Вход в Container registry (Using provided secret)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.ghcr-token }}
+
+      - name: Извлечение метаданных (теги, метки) для Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,suffix=,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Настройка Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Сборка и отправка Docker образа
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.docker-context }}
+          file: ${{ inputs.dockerfile-path }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to VDS (${{ inputs.deploy-target-name }}) via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.vds-host }}
+          username: ${{ secrets.vds-username }}
+          key: ${{ secrets.vds-private-key }}
+          script: |
+            set -e
+            echo "Starting deployment script on VDS for target: ${{ inputs.deploy-target-name }}"
+            COMPOSE_DIR=$(dirname "${{ inputs.vds-compose-path }}")
+            COMPOSE_FILE_NAME=$(basename "${{ inputs.vds-compose-path }}")
+            cd "$COMPOSE_DIR"
+            echo "Working directory: $(pwd)"
+            echo "Using compose file: ${COMPOSE_FILE_NAME}"
+            echo "Logging into GHCR (${{ env.REGISTRY }})..."
+            echo "${{ secrets.ghcr-token }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+            echo "Login to GHCR successful."
+            IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            echo "Target image tag: ${IMAGE_TAG}"
+            echo "Updating ${COMPOSE_FILE_NAME} for service '${{ inputs.compose-service-name }}'..."
+            if command -v yq &> /dev/null; then
+                echo "Using yq..."
+                export IMAGE_TAG
+                export SERVICE_NAME="${{ inputs.compose-service-name }}"
+                yq -i '.services[env(SERVICE_NAME)].image = env(IMAGE_TAG)' "${COMPOSE_FILE_NAME}"
+            else
+                echo "WARNING: yq command not found. Using sed (less reliable, check carefully)..."
+                sed -i "/^\s*${{ inputs.compose-service-name }}:/,/^\s*[^ ]/ s#^\(\s*image:\s*\).*#\1${IMAGE_TAG}#" "${COMPOSE_FILE_NAME}"
+            fi
+            echo "Compose file updated."
+            echo "Pulling new image for service '${{ inputs.compose-service-name }}'..."
+            docker compose -f "${COMPOSE_FILE_NAME}" pull ${{ inputs.compose-service-name }}
+            echo "Restarting service '${{ inputs.compose-service-name }}'..."
+            docker compose -f "${COMPOSE_FILE_NAME}" up -d --force-recreate --no-deps ${{ inputs.compose-service-name }}
+            echo "Pruning old docker images..."
+            docker image prune -af
+            echo "Deployment to VDS (${{ inputs.deploy-target-name }}) finished successfully!"
+
+      - name: Отправка уведомления в Discord при успехе
+        if: success() && inputs.notify == true
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
+        with:
+          args: |
+            {
+              "embeds": [{
+                "title": "✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены!",
+                "color": 3066993,
+                "fields": [
+                  {"name": "Репозиторий", "value": "[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})"},
+                  {"name": "Событие", "value": "${{ github.event_name }}"},
+                  {"name": "Workflow", "value": "[Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"},
+                  {"name": "Образ", "value": "```${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}```"},
+                  {"name": "Теги", "value": "```${{ steps.meta.outputs.tags }}```"}
+                ]
+              }]
+            }
+
+      - name: Отправка уведомления в Discord при ошибке
+        if: failure() && inputs.notify == true
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
+        with:
+          args: |
+            {
+              "embeds": [{
+                "title": "❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})!",
+                "color": 15158332,
+                "fields": [
+                  {"name": "Репозиторий", "value": "[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})"},
+                  {"name": "Событие", "value": "${{ github.event_name }}"},
+                  {"name": "Workflow", "value": "[Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"},
+                  {"name": "Подробности", "value": "Пожалуйста, проверьте логи workflow для получения информации об ошибке."}
+                ]
+              }]
+            }
