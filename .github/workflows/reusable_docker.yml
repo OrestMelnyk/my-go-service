@@ -152,10 +152,11 @@ jobs:
 
       - name: Отправка уведомления в Discord при успехе
         if: success() && inputs.notify == true
-        uses: tsickert/discord-webhook@v1
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
         with:
-          webhook-url: ${{ secrets.discord-webhook-url }}
-          content: |
+          args: >
             {
               "embeds": [{
                 "title": "✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены!",
@@ -166,10 +167,11 @@ jobs:
 
       - name: Отправка уведомления в Discord при ошибке
         if: failure() && inputs.notify == true
-        uses: tsickert/discord-webhook@v1
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
         with:
-          webhook-url: ${{ secrets.discord-webhook-url }}
-          content: |
+          args: >
             {
               "embeds": [{
                 "title": "❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})!",
