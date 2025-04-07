@@ -153,9 +153,9 @@ jobs:
       - name: Отправка уведомления в Discord при успехе (через curl)
         if: success() && inputs.notify == true
         run: |
-            curl -H "Content-Type: application/json" -X POST -d '{"content":"✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены! Репозиторий: ${{ github.repository }}"}' ${{ secrets.discord-webhook-url }}
+            curl -H "Content-Type: application/json" -X POST -d '{"content":"✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены! \nРепозиторий: ${{ github.repository }}"}' ${{ secrets.discord-webhook-url }}
 
       - name: Отправка уведомления в Discord при ошибке (через curl)
         if: failure() && inputs.notify == true
         run: |
-            curl -H "Content-Type: application/json" -X POST -d '{"content":"❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})! Репозиторий: ${{ github.repository }}"}' ${{ secrets.discord-webhook-url }}
+            curl -H "Content-Type: application/json" -X POST -d '{"content":"❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})! \nРепозиторий: ${{ github.repository }}"}' ${{ secrets.discord-webhook-url }}
