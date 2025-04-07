@@ -152,11 +152,10 @@ jobs:
 
       - name: Отправка уведомления в Discord при успехе
         if: success() && inputs.notify == true
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
+        uses: tsickert/discord-webhook@v1
         with:
-          args: >
+          webhook-url: ${{ secrets.discord-webhook-url }}
+          content: |
             {
               "embeds": [{
                 "title": "✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены!",
@@ -167,15 +166,10 @@ jobs:
 
       - name: Отправка уведомления в Discord при ошибке
         if: failure() && inputs.notify == true
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
+        uses: tsickert/discord-webhook@v1
         with:
-          args: >
+          webhook-url: ${{ secrets.discord-webhook-url }}
+          content: |
             {
               "embeds": [{
-                "title": "❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})!",
-                "color": 15158332,
-                "description": "Репозиторий: [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})\nСобытие: ${{ github.event_name }}\nWorkflow: [Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\nПодробности: Пожалуйста, проверьте логи workflow для получения информации об ошибке."
-              }]
-            }
+                "title": "
