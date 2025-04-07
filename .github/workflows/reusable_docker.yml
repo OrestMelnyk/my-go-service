@@ -150,30 +150,30 @@ jobs:
             docker image prune -af
             echo "Deployment to VDS (${{ inputs.deploy-target-name }}) finished successfully!"
 
+      - name: Дебаг - Статус перед відправкою повідомлення (успіх)
+        if: inputs.notify == true
+        run: |
+          echo "Workflow status: ${{ job.status }}"
+          echo "Inputs.notify: ${{ inputs.notify }}"
+          echo "Sending success notification..."
+
       - name: Отправка уведомления в Discord при успехе
         if: success() && inputs.notify == true
         uses: tsickert/discord-webhook@v1
         with:
           webhook-url: ${{ secrets.discord-webhook-url }}
-          content: |
-            {
-              "embeds": [{
-                "title": "✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены!",
-                "color": 3066993,
-                "description": "Репозиторий: [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})\nСобытие: ${{ github.event_name }}\nWorkflow: [Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\nОбраз: ```${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}```\nТеги: ```${{ steps.meta.outputs.tags }}```"
-              }]
-            }
+          content: "✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены! Репозиторий: ${{ github.repository }}"
+
+      - name: Дебаг - Статус перед відправкою повідомлення (помилка)
+        if: inputs.notify == true
+        run: |
+          echo "Workflow status: ${{ job.status }}"
+          echo "Inputs.notify: ${{ inputs.notify }}"
+          echo "Sending failure notification..."
 
       - name: Отправка уведомления в Discord при ошибке
         if: failure() && inputs.notify == true
         uses: tsickert/discord-webhook@v1
         with:
           webhook-url: ${{ secrets.discord-webhook-url }}
-          content: |
-            {
-              "embeds": [{
-                "title": "❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})!",
-                "color": 15158332,
-                "description": "Репозиторий: [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})\nСобытие: ${{ github.event_name }}\nWorkflow: [Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\nПодробности: Пожалуйста, проверьте логи workflow для получения информации об ошибке."
-              }]
-            }
+          content: "❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})! Репозиторий: ${{ github.repository }}"
