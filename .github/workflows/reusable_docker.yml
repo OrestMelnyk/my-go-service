@@ -152,28 +152,41 @@ jobs:
 
       - name: Отправка уведомления в Discord при успехе
         if: success() && inputs.notify == true
-        uses: tsickert/discord-webhook@v1
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
         with:
-          webhook-url: ${{ secrets.discord-webhook-url }}
-          content: |
+          args: |
             {
               "embeds": [{
                 "title": "✅ Сборка и деплой (${{ inputs.deploy-target-name }}) успешно завершены!",
                 "color": 3066993,
-                "description": "Репозиторий: [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})\nСобытие: ${{ github.event_name }}\nWorkflow: [Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\nОбраз: ```${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}```\nТеги: ```${{ steps.meta.outputs.tags }}```"
+                "fields": [
+                  {"name": "Репозиторий", "value": "[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})"},
+                  {"name": "Событие", "value": "${{ github.event_name }}"},
+                  {"name": "Workflow", "value": "[Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"},
+                  {"name": "Образ", "value": "```${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}```"},
+                  {"name": "Теги", "value": "```${{ steps.meta.outputs.tags }}```"}
+                ]
               }]
             }
 
       - name: Отправка уведомления в Discord при ошибке
         if: failure() && inputs.notify == true
-        uses: tsickert/discord-webhook@v1
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.discord-webhook-url }}
         with:
-          webhook-url: ${{ secrets.discord-webhook-url }}
-          content: |
+          args: |
             {
               "embeds": [{
                 "title": "❌ Ошибка сборки/деплоя (${{ inputs.deploy-target-name }})!",
                 "color": 15158332,
-                "description": "Репозиторий: [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})\nСобытие: ${{ github.event_name }}\nWorkflow: [Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\nПодробности: Пожалуйста, проверьте логи workflow для получения информации об ошибке."
+                "fields": [
+                  {"name": "Репозиторий", "value": "[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})"},
+                  {"name": "Событие", "value": "${{ github.event_name }}"},
+                  {"name": "Workflow", "value": "[Просмотр запуска Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"},
+                  {"name": "Подробности", "value": "Пожалуйста, проверьте логи workflow для получения информации об ошибке."}
+                ]
               }]
             }
