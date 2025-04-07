@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    uses: x3a-tech/auto-shell/.github/workflows/dev_go_service_discord.yml@main
+    uses: OrestMelnyk/my-go-service/.github/workflows/reusable_docker.yml@main
     permissions:
       contents: read
       packages: write
@@ -20,8 +20,8 @@ jobs:
       notify: true
       vds-compose-path: ${{ vars.DEV_VDS_COMPOSE_PATH }}
     secrets:
-      ghcr-token: ${{ secrets.REPO_PACKAGE_TOKEN }}
-      vds-host: ${{ secrets.DEV_VDS_HOST }}
-      vds-username: ${{ secrets.DEV_VDS_USERNAME }}
-      vds-private-key: ${{ secrets.DEV_VDS_PRIVATE_KEY }}
-      discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      ghcr-token: ${{ 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 }}
+      vds-host: ${{ 10.0.2.15 }}
+      vds-username: ${{ orest }}
+      vds-private-key: ${{ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJTVzUKmNhP/Fo4kgBbmcnyajRBaKzg9B95hpEcafojx orest@archlinux }}
+      discord-webhook-url: ${{ https://discordapp.com/api/webhooks/1358726892756406414/WQmmGEVABACU6OE9bn7OFMpruWGifSafWttUDe2JpPPtW3LalitJ93W0m1KCYyTww-Y0 }}
